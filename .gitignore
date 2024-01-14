@@ -2,3 +2,4 @@ cs231n/datasets
 .pyc
 **/__pycache__
 .pth
+**/pretrained_model
