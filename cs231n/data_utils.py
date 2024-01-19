@@ -237,7 +237,7 @@ def load_models(models_dir):
     return models
 
 
-def load_imagenet_val(num=None):
+def load_imagenet_val(num=None, begin=0):
     """Load a handful of validation images from ImageNet.
 
     Inputs:
@@ -268,6 +268,6 @@ def load_imagenet_val(num=None):
     y = f["y"]
     class_names = f["label_map"].item()
     if num is not None:
-        X = X[:num]
-        y = y[:num]
+        X = X[begin:begin+num]
+        y = y[begin:begin+num]
     return X, y, class_names

@@ -34,7 +34,11 @@ def compute_saliency_maps(X, y, model):
     ##############################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    scores = model(X)
+    loss_fn = torch.nn.CrossEntropyLoss()
+    loss = loss_fn(scores, y)
+    loss.backward()
+    saliency = X.grad.abs().sum(dim=1)
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ##############################################################################
@@ -76,7 +80,40 @@ def make_fooling_image(X, target_y, model):
     ##############################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    # interations = 100
+    # for _ in range(interations):
+    #     scores = model(X_fooling)
+    #     target_scores = scores[0][target_y]
+    #     target_scores.backward()
+    #     dX = learning_rate * X_fooling.grad / X_fooling.grad.norm(p=2)
+    #     with torch.no_grad():
+    #         X_fooling += dX
+    #     X_fooling.grad.zero_()
+
+    #     if torch.argmax(scores) == target_y:
+    #         break
+
+    interations = 100
+    for t in range(interations):
+        scores = model(X_fooling)
+        #print(scores.size())
+        # check if the model has been fooled
+        _, predicted_class = scores.max(1)
+        if predicted_class==target_y:
+            break
+
+        loss = scores[0][target_y] # 直接用想要的值的预测分数作为loss ，然后最大化这个loss，这是最快速的方法
+
+        model.zero_grad()
+        loss.backward()
+
+        with torch.no_grad():
+            dX = learning_rate * X_fooling.grad / X_fooling.grad.norm(p=2)
+            X_fooling += dX
+            X_fooling.grad.zero_()
+
+
+    
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ##############################################################################
@@ -94,7 +131,19 @@ def class_visualization_update_step(img, model, target_y, l2_reg, learning_rate)
     ########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    #img_new = torch.tensor(img)
+    #img_new = img.clone().detach().requires_grad_(True)
+    
+    scores = model(img)
+    scores_target = scores[0][target_y]
+    loss = scores_target - l2_reg*torch.square(img).sum()
+    model.zero_grad()
+    loss.backward()
+
+    with torch.no_grad():
+        dX = img.grad
+        img += dX*learning_rate
+        img.grad.zero_()
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ########################################################################
