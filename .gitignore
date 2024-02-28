@@ -3,3 +3,4 @@ cs231n/datasets
 **/__pycache__
 .pth
 **/pretrained_model
+cs231n/classifiers/__pycache__/**

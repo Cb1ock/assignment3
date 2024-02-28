@@ -110,13 +110,13 @@ class CaptioningRNN:
         W_proj, b_proj = self.params["W_proj"], self.params["b_proj"]
 
         # Word embedding matrix
-        W_embed = self.params["W_embed"]
+        W_embed = self.params["W_embed"] # (V,W)
 
         # Input-to-hidden, hidden-to-hidden, and biases for the RNN
         Wx, Wh, b = self.params["Wx"], self.params["Wh"], self.params["b"]
 
         # Weight and bias for the hidden-to-vocab transformation.
-        W_vocab, b_vocab = self.params["W_vocab"], self.params["b_vocab"]
+        W_vocab, b_vocab = self.params["W_vocab"], self.params["b_vocab"] # (H,V)
 
         loss, grads = 0.0, {}
         ############################################################################
@@ -148,7 +148,29 @@ class CaptioningRNN:
         ############################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-        pass
+        # forward pass
+        h0 , af_cache = affine_forward(features, W_proj, b_proj) # N*H
+        y_in, embed_cache = word_embedding_forward(captions_in, W_embed) # N*T*W
+        #features = word_embedding_forward(features, W_embed) # N*H*D
+        if self.cell_type == 'rnn':
+            y_out, rnn_cache = rnn_forward(y_in, h0, Wx, Wh, b) # (N, T, H)
+        elif self.cell_type == 'lstm':
+            pass
+        else:
+            print('Wrong cell type')
+            return
+        
+        scores , temp_af_cache = temporal_affine_forward(y_out, W_vocab, b_vocab) # (N, T, V)
+        #print(scores.shape)
+        loss, dx = temporal_softmax_loss(scores, captions_out, mask)
+
+        # backward pass
+        # dx has shape (N,T,V)
+        dx, grads['W_vocab'], grads['b_vocab'] = temporal_affine_backward(dx, temp_af_cache)
+        dx, dh0, grads['Wx'], grads['Wh'], grads['b'] = rnn_backward(dx, rnn_cache)
+        grads['W_embed'] = word_embedding_backward(dx, embed_cache)
+        _, grads['W_proj'], grads['b_proj'] = affine_backward(dh0, af_cache)
+
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         ############################################################################
@@ -216,8 +238,25 @@ class CaptioningRNN:
         ###########################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-        pass
+        #captions = np.zeros(shape=(N, max_length))
+        next_h, _ = affine_forward(features, W_proj, b_proj)
+        start = np.repeat(self._start, N/2)
+        for t in range(max_length):
+            #if t == 0:
+            embed, _ = word_embedding_forward(start, W_embed)
+            embed = embed.squeeze()
+            # else:
+            #   embed, _ = word_embedding_forward(captions[:, t-1].astype(int), W_embed)
+            if self.cell_type == 'rnn':
+                
+                next_h, _ = rnn_step_forward(embed, next_h, Wx, Wh, b)
 
+                
+            scores, _ = affine_forward(next_h, W_vocab, b_vocab)
+            
+            
+            captions[:,t] = np.argmax(scores, axis=1)
+        
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         ############################################################################
         #                             END OF YOUR CODE                             #

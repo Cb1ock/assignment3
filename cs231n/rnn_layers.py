@@ -72,8 +72,9 @@ def rnn_step_forward(x, prev_h, Wx, Wh, b):
     # and cache variables respectively.                                          #
     ##############################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
-
-    pass
+    
+    next_h = np.tanh(prev_h.dot(Wh) + x.dot(Wx) + b)
+    cache = (x, prev_h, Wx, Wh, b)
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ##############################################################################
@@ -105,8 +106,27 @@ def rnn_step_backward(dnext_h, cache):
     ##############################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    x, prev_h, Wx, Wh, b = cache
+    a = prev_h.dot(Wh) + x.dot(Wx) + b # (N, H)
+    tanh = (np.exp(a) - np.exp(-a))/(np.exp(a) + np.exp(-a))
+    da = 1 - np.square(tanh) # (N, H)
+    da = da * dnext_h # (N, H)
 
+    db = da.sum(axis = 0)
+    dprev_h = da.dot(Wh.T)
+    dWh = prev_h.T.dot(da)
+
+    dx = da.dot(Wx.T)
+    dWx = x.T.dot(da)
+
+    # N, H = dnext_h.shape
+    # D = x.shape[1]
+    # if dx.shape == (N, D) and dprev_h.shape == (N, H) and dWx.shape == (D, H) and dWh.shape == (H, H) and db.shape == (H,):
+    #     print("shape is correct")
+    # else:
+    #     print("shape is not correct")
+    
+    
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ##############################################################################
     #                               END OF YOUR CODE                             #
@@ -140,7 +160,16 @@ def rnn_forward(x, h0, Wx, Wh, b):
     ##############################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    N, T, D = x.shape
+    N, H = h0.shape
+    h = np.zeros((N,T,H))
+    cache = [None for _ in range(T)]
+    
+    for t in range(T):
+        if t == 0:
+            h[:,0,:], cache[0] = rnn_step_forward(x[:,0,:], h0, Wx, Wh, b)
+        else:
+            h[:,t,:], cache[t] = rnn_step_forward(x[:,t,:], h[:,t-1,:].reshape(N,H), Wx, Wh, b)
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ##############################################################################
@@ -175,7 +204,24 @@ def rnn_backward(dh, cache):
     ##############################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    N, T, H = dh.shape
+    N, D = cache[0][0].shape
+    dx = np.zeros((N, T, D))
+    dh0 = np.zeros((N, H))
+    dWx = np.zeros((D, H))
+    dWh = np.zeros((H, H))
+    db = np.zeros((H,))
+    dtemp = np.zeros_like(dh0)
+
+    for t in reversed(range(T)):
+        if t == 0:
+            dx[:,t,:], dh0 ,dWx_1, dWh_1, db_1 = rnn_step_backward(dh[:,t,:] + dtemp, cache[t])    
+        else:
+            dx[:,t,:], dtemp, dWx_1, dWh_1, db_1 = rnn_step_backward(dh[:,t,:] + dtemp, cache[t])
+
+        dWx += dWx_1
+        dWh += dWh_1
+        db += db_1
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ##############################################################################
@@ -208,7 +254,14 @@ def word_embedding_forward(x, W):
     ##############################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    if x.ndim == 1:
+        x = x.reshape(1, -1)
+    N, T = x.shape
+    V, D = W.shape
+    out = np.zeros((N,T,D))
+    #for d in range(D):
+    out = W[x,:]
+    cache = (x, W)
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ##############################################################################
@@ -242,7 +295,9 @@ def word_embedding_backward(dout, cache):
     ##############################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    x, W = cache
+    dW = np.zeros_like(W)
+    np.add.at(dW, x, dout) # np.add.at(arr, indices, values)
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ##############################################################################
